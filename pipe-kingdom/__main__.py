@@ -36,6 +36,11 @@ class BuildingType(Enum):
     TREATMENT_CENTRE = auto()
     VERTICAL_PIPE = auto()
     HORIZONTAL_PIPE = auto()
+    DOWN_RIGHT_PIPE = auto()
+    UP_RIGHT_PIPE = auto()
+    DOWN_LEFT_PIPE = auto()
+    UP_LEFT_PIPE = auto()
+    CROSS_PIPE = auto()
     CHEMICAL_PLANT = auto()
     WATER_PUMP = auto()
 
@@ -56,6 +61,17 @@ class BuildingType(Enum):
                 return "horizontal-pipe.png"
             case BuildingType.CHEMICAL_PLANT:
                 return "chemical.png"
+            case BuildingType.DOWN_RIGHT_PIPE:
+                return "down-right.png"
+            case BuildingType.UP_RIGHT_PIPE:
+                return "up-right.png"
+            case BuildingType.DOWN_LEFT_PIPE:
+                return "down-left.png"
+            case BuildingType.DOWN_RIGHT_PIPE:
+                return "down-right.png"
+            case BuildingType.CHEMICAL_PLANT:
+                return "chemical.png"
+
             case BuildingType.WATER_PUMP:
                 return "pump.png"
 
@@ -204,7 +220,11 @@ class PipeKingdom(Window):
             x = pipe_x * GRID_WIDTH
             y = pipe_y * GRID_HEIGHT
             scale = 0.4
-
+            print(self.pipes)
+            if self.pipes[pipe_x][pipe_y + 1] and self.pipes[pipe_x + 1][pipe_y]:
+                self.current_building_type = BuildingType.UP_RIGHT_PIPE
+                print("!!")
+                
         if self.current_building_type.is_big:
             for building in self.buildings:
                 if building.distance(x, y) < 100:
@@ -212,7 +232,7 @@ class PipeKingdom(Window):
         else:
             # In this case, we're placing a pipe on the map
             for building in self.buildings:
-                if building.distance(x, y) < 100:
+                if building.distance(x, y) < 100 and building.is_big:
                     building.pipes.append((pipe_x, pipe_y))
                     buildings.append(building)
 
