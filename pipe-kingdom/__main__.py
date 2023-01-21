@@ -1,14 +1,56 @@
+import math
+from dataclasses import dataclass
+from enum import Enum, auto
+
 import arcade
 import arcade.gui
-from arcade import Window, Sprite, SpriteList
-from dataclasses import dataclass
+from arcade import Sprite, SpriteList, Window
 
+
+GRID_WIDTH = 40
+GRID_HEIGHT = 40
 
 @dataclass
 class Building:
     x: int
     y: int
     sprite: Sprite
+
+    def squared_distance(self, x, y):
+        return (self.x - x) ** 2 + (self.y - y) ** 2
+
+    def distance(self, x, y):
+        return math.sqrt(self.squared_distance(x, y))
+
+
+class BuildingType(Enum):
+    HOUSE = auto()
+    TREATMENT_CENTRE = auto()
+    VERTICAL_PIPE = auto()
+    HORIZONTAL_PIPE = auto()
+
+    @property
+    def resource(self):
+        return "assets/" + self.resource_name
+
+    @property
+    def resource_name(self):
+        match self:
+            case BuildingType.HOUSE:
+                return "house.png"
+            case BuildingType.TREATMENT_CENTRE:
+                return
+            case BuildingType.VERTICAL_PIPE:
+                return "vertical-pipe.png"
+            case BuildingType.HORIZONTAL_PIPE:
+                return "horizontal-pipe.png"
+
+    @property
+    def is_pipe(self):
+        match self:
+            case BuildingType.VERTICAL_PIPE | BuildingType.HORIZONTAL_PIPE:
+                return True
+        return False
 
 
 class PipeKingdom(Window):
@@ -19,6 +61,9 @@ class PipeKingdom(Window):
         self.title = title
         self.show_menu = None
         self.current_building_type = None
+        self.building_pipes = False
+
+        self.pipes = [[None for _ in range(width // GRID_HEIGHT)] for _ in range(height // GRID_WIDTH)]
 
         self.manager = arcade.gui.UIManager()
         self.manager.enable()
@@ -37,18 +82,42 @@ class PipeKingdom(Window):
 
         self.menu_box_layout = arcade.gui.UIBoxLayout(space_between=7.5)
         self.house_button = arcade.gui.UIFlatButton(text="House", width=400)
+        self.horizontal_pipe_button = arcade.gui.UIFlatButton(
+            text="Horizontal pipe", width=400
+        )
+        self.vertical_pipe_button = arcade.gui.UIFlatButton(
+            text="Vertical pipe", width=400
+        )
         self.sewage_button = arcade.gui.UIFlatButton(
             text="Sewage treatment centre", width=400
         )
         self.nothing_button = arcade.gui.UIFlatButton(text="Do nothing", width=400)
 
-        self.house_button.on_click = self.building_setter(True)
-        self.sewage_button.on_click = self.building_setter(True)
+        self.house_button.on_click = self.building_setter(BuildingType.HOUSE)
+        self.sewage_button.on_click = self.building_setter(
+            BuildingType.TREATMENT_CENTRE
+        )
+        self.horizontal_pipe_button.on_click = self.building_setter(
+            BuildingType.HORIZONTAL_PIPE
+        )
+        self.vertical_pipe_button.on_click = self.building_setter(
+            BuildingType.VERTICAL_PIPE
+        )
         self.nothing_button.on_click = self.building_setter(None)
 
         self.menu_box_layout.add(self.house_button)
         self.menu_box_layout.add(self.sewage_button)
         self.menu_box_layout.add(self.nothing_button)
+        self.menu_box_layout.add(self.horizontal_pipe_button)
+        self.menu_box_layout.add(self.vertical_pipe_button)
+
+        self.message_box_manager = arcade.gui.UIManager()
+        self.message_box = arcade.gui.UIMessageBox(
+            width=300,
+            height=400,
+            message_text="Too close to existing building",
+            buttons=["OK"],
+        )
 
         self.menu_box.add(
             arcade.gui.UIAnchorWidget(
@@ -61,6 +130,9 @@ class PipeKingdom(Window):
         self.sprite_list = SpriteList()
 
         self.buildings = []
+
+    def toggle_building_pipes(self):
+        self.building_pipes = not self.building_pipes
 
     def building_setter(self, building_type):
         def set(event):
@@ -87,7 +159,15 @@ class PipeKingdom(Window):
 
     def on_mouse_press(self, x, y, button, modifiers):
         if self.current_building_type:
-            sprite = Sprite("assets/house.png", center_x=x, center_y=y, scale=0.1)
+            if self.current_building_type.is_pipe:
+                pass
+            if self.current_building_type == BuildingType.HOUSE:
+                for building in self.buildings:
+                    if building.distance(x, y) < 100:
+                        return
+            sprite = Sprite(
+                self.current_building_type.resource, center_x=x, center_y=y, scale=0.1
+            )
             self.buildings.append(Building(x, y, sprite))
             self.sprite_list.append(sprite)
 
