@@ -219,11 +219,12 @@ class PipeKingdom(Window):
         sprite = Sprite(
             self.current_building_type.resource, center_x=x, center_y=y, scale=scale
         )
-        self.buildings.append(Building(x, y, sprite, buildings=buildings))
+        building = Building(x, y, sprite, buildings=buildings)
+        self.buildings.append(building)
         self.sprite_list.append(sprite)
 
         if self.current_building_type.is_pipe:
-            self.pipes[pipe_x][pipe_y] = sprite
+            self.pipes[pipe_x][pipe_y] = building
 
 
 def main():
