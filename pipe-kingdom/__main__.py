@@ -16,21 +16,6 @@ GRID_HEIGHT = 115
 Pipe = Tuple[int, int]
 
 
-@dataclass
-class Building:
-    x: int
-    y: int
-    sprite: Sprite
-    pipes: list[Pipe] = field(default_factory=list)
-    buildings: list = field(default_factory=list)
-
-    def squared_distance(self, x, y):
-        return (self.x - x) ** 2 + (self.y - y) ** 2
-
-    def distance(self, x, y):
-        return math.sqrt(self.squared_distance(x, y))
-
-
 class BuildingType(Enum):
     HOUSE = auto()
     TREATMENT_CENTRE = auto()
@@ -87,6 +72,22 @@ class BuildingType(Enum):
         return (
             self != BuildingType.VERTICAL_PIPE and self != BuildingType.HORIZONTAL_PIPE
         )
+
+@dataclass
+class Building:
+    x: int
+    y: int
+    sprite: Sprite
+    building_type: BuildingType = None
+    pipes: list[Pipe] = field(default_factory=list)
+    buildings: list = field(default_factory=list)
+
+    def squared_distance(self, x, y):
+        return (self.x - x) ** 2 + (self.y - y) ** 2
+
+    def distance(self, x, y):
+        return math.sqrt(self.squared_distance(x, y))
+
 
 
 class PipeKingdom(Window):
@@ -220,10 +221,8 @@ class PipeKingdom(Window):
             x = pipe_x * GRID_WIDTH
             y = pipe_y * GRID_HEIGHT
             scale = 0.4
-            print(self.pipes)
             if self.pipes[pipe_x][pipe_y + 1] and self.pipes[pipe_x + 1][pipe_y]:
                 self.current_building_type = BuildingType.UP_RIGHT_PIPE
-                print("!!")
                 
         if self.current_building_type.is_big:
             for building in self.buildings:
@@ -232,14 +231,14 @@ class PipeKingdom(Window):
         else:
             # In this case, we're placing a pipe on the map
             for building in self.buildings:
-                if building.distance(x, y) < 100 and building.is_big:
+                if building.distance(x, y) < 100 and building.building_type.is_big:
                     building.pipes.append((pipe_x, pipe_y))
                     buildings.append(building)
 
         sprite = Sprite(
             self.current_building_type.resource, center_x=x, center_y=y, scale=scale
         )
-        building = Building(x, y, sprite, buildings=buildings)
+        building = Building(x, y, sprite, buildings=buildings, building_type=self.current_building_type)
         self.buildings.append(building)
         self.sprite_list.append(sprite)
 
