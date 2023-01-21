@@ -17,7 +17,7 @@ class PipeKingdom(Window):
         self.width = width
         self.height = height
         self.title = title
-        self.show_menu = False
+        self.show_menu = None
         self.current_building_type = None
 
         self.manager = arcade.gui.UIManager()
@@ -41,6 +41,11 @@ class PipeKingdom(Window):
             text="Sewage treatment centre", width=400
         )
         self.nothing_button = arcade.gui.UIFlatButton(text="Do nothing", width=400)
+
+        self.house_button.on_click = self.building_setter(True)
+        self.sewage_button.on_click = self.building_setter(True)
+        self.nothing_button.on_click = self.building_setter(None)
+
         self.menu_box_layout.add(self.house_button)
         self.menu_box_layout.add(self.sewage_button)
         self.menu_box_layout.add(self.nothing_button)
@@ -56,6 +61,12 @@ class PipeKingdom(Window):
         self.sprite_list = SpriteList()
 
         self.buildings = []
+
+    def building_setter(self, building_type):
+        def set(event):
+            self.current_building_type = building_type
+
+        return set
 
     def toggle_menu(self, event):
         self.show_menu = not self.show_menu
