@@ -39,7 +39,7 @@ class BuildingType(Enum):
             case BuildingType.HOUSE:
                 return "house.png"
             case BuildingType.TREATMENT_CENTRE:
-                return
+                return "treatmentplant.png"
             case BuildingType.VERTICAL_PIPE:
                 return "vertical-pipe.png"
             case BuildingType.HORIZONTAL_PIPE:
