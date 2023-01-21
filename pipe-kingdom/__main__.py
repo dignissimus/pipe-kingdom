@@ -7,8 +7,9 @@ import arcade.gui
 from arcade import Sprite, SpriteList, Window
 
 
-GRID_WIDTH = 40
+GRID_WIDTH = 30
 GRID_HEIGHT = 40
+
 
 @dataclass
 class Building:
@@ -28,6 +29,8 @@ class BuildingType(Enum):
     TREATMENT_CENTRE = auto()
     VERTICAL_PIPE = auto()
     HORIZONTAL_PIPE = auto()
+    CHEMICAL_PLANT = auto()
+    WATER_PUMP = auto()
 
     @property
     def resource(self):
@@ -44,6 +47,11 @@ class BuildingType(Enum):
                 return "vertical-pipe.png"
             case BuildingType.HORIZONTAL_PIPE:
                 return "horizontal-pipe.png"
+            case BuildingType.CHEMICAL_PLANT:
+                return "chemical.png"
+            case BuildingType.WATER_PUMP:
+                return "pump.png"
+
 
     @property
     def is_pipe(self):
@@ -51,6 +59,10 @@ class BuildingType(Enum):
             case BuildingType.VERTICAL_PIPE | BuildingType.HORIZONTAL_PIPE:
                 return True
         return False
+
+    @property
+    def is_big(self):
+        return self != BuildingType.VERTICAL_PIPE and self != BuildingType.HORIZONTAL_PIPE
 
 
 class PipeKingdom(Window):
@@ -63,7 +75,10 @@ class PipeKingdom(Window):
         self.current_building_type = None
         self.building_pipes = False
 
-        self.pipes = [[None for _ in range(width // GRID_HEIGHT)] for _ in range(height // GRID_WIDTH)]
+        self.pipes = [
+            [None for _ in range(height // GRID_HEIGHT)]
+            for _ in range(width // GRID_WIDTH)
+        ]
 
         self.manager = arcade.gui.UIManager()
         self.manager.enable()
@@ -92,6 +107,8 @@ class PipeKingdom(Window):
             text="Sewage treatment centre", width=400
         )
         self.nothing_button = arcade.gui.UIFlatButton(text="Do nothing", width=400)
+        self.chemical_plant_button = arcade.gui.UIFlatButton(text="Chemical plant", width=400)
+        self.water_pump_button = arcade.gui.UIFlatButton(text="Water pump", width=400)
 
         self.house_button.on_click = self.building_setter(BuildingType.HOUSE)
         self.sewage_button.on_click = self.building_setter(
@@ -103,6 +120,13 @@ class PipeKingdom(Window):
         self.vertical_pipe_button.on_click = self.building_setter(
             BuildingType.VERTICAL_PIPE
         )
+        self.chemical_plant_button.on_click = self.building_setter(
+            BuildingType.CHEMICAL_PLANT
+        )
+        self.water_pump_button.on_click = self.building_setter(
+            BuildingType.WATER_PUMP
+        )
+
         self.nothing_button.on_click = self.building_setter(None)
 
         self.menu_box_layout.add(self.house_button)
@@ -110,6 +134,8 @@ class PipeKingdom(Window):
         self.menu_box_layout.add(self.nothing_button)
         self.menu_box_layout.add(self.horizontal_pipe_button)
         self.menu_box_layout.add(self.vertical_pipe_button)
+        self.menu_box_layout.add(self.water_pump_button)
+        self.menu_box_layout.add(self.chemical_plant_button)
 
         self.message_box_manager = arcade.gui.UIManager()
         self.message_box = arcade.gui.UIMessageBox(
@@ -159,17 +185,25 @@ class PipeKingdom(Window):
 
     def on_mouse_press(self, x, y, button, modifiers):
         if self.current_building_type:
-            if self.current_building_type.is_pipe:
-                pass
-            if self.current_building_type == BuildingType.HOUSE:
+            if self.current_building_type.is_big:
                 for building in self.buildings:
                     if building.distance(x, y) < 100:
                         return
+
+            if self.current_building_type.is_pipe:
+                pipe_x = x // GRID_WIDTH
+                pipe_y = (y + 30) // GRID_HEIGHT
+                x = pipe_x * GRID_WIDTH
+                y = pipe_y * GRID_HEIGHT
+
             sprite = Sprite(
                 self.current_building_type.resource, center_x=x, center_y=y, scale=0.1
             )
             self.buildings.append(Building(x, y, sprite))
             self.sprite_list.append(sprite)
+
+            if self.current_building_type.is_pipe:
+                self.pipes[pipe_x][pipe_y] = sprite
 
 
 def main():
