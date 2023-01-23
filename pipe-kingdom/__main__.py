@@ -7,7 +7,6 @@ import arcade
 import arcade.gui
 from arcade import Sprite, SpriteList, Window
 
-
 GRID_WIDTH = 115
 GRID_HEIGHT = 115
 
@@ -73,6 +72,7 @@ class BuildingType(Enum):
             self != BuildingType.VERTICAL_PIPE and self != BuildingType.HORIZONTAL_PIPE
         )
 
+
 @dataclass
 class Building:
     x: int
@@ -87,7 +87,6 @@ class Building:
 
     def distance(self, x, y):
         return math.sqrt(self.squared_distance(x, y))
-
 
 
 class PipeKingdom(Window):
@@ -182,6 +181,8 @@ class PipeKingdom(Window):
 
         self.buildings = []
 
+        self.money = 3000
+
     def toggle_building_pipes(self):
         self.building_pipes = not self.building_pipes
 
@@ -208,6 +209,38 @@ class PipeKingdom(Window):
         if self.show_menu:
             self.menu_box.draw()
 
+        arcade.draw_text(
+            f"Pipe money: ${self.money}",
+            50,
+            self.height - 50,
+            arcade.color.BLACK,
+            14,
+            width=self.width - 200,
+            align="left",
+        )
+
+    def connected_buildings(self, pipe_x, pipe_y, A=None):
+        if A == None:
+            A = []
+        if pipe_x >= len(self.pipes) or pipe_y >= len(self.pipes[pipe_x]):
+            return []
+
+        pipe = self.pipes[pipe_x][pipe_y]
+        if not pipe:
+            return []
+        if pipe in A:
+            return []
+        A.append(pipe)
+
+        buildings = []
+        buildings.extend(pipe.buildings)
+        for _x in [-1, 0, 1]:
+            for _y in [-1, 0, 1]:
+                other_x = _x + pipe_x
+                other_y = _y + pipe_y
+                buildings.extend(self.connected_buildings(other_x, other_y, A))
+        return buildings
+
     def on_mouse_press(self, x, y, button, modifiers):
         if not self.current_building_type:
             return
@@ -223,10 +256,10 @@ class PipeKingdom(Window):
             scale = 0.4
             if self.pipes[pipe_x][pipe_y + 1] and self.pipes[pipe_x + 1][pipe_y]:
                 self.current_building_type = BuildingType.UP_RIGHT_PIPE
-                
+
         if self.current_building_type.is_big:
             for building in self.buildings:
-                if building.distance(x, y) < 100:
+                if building.distance(x, y) < 100 and building.is_big:
                     return
         else:
             # In this case, we're placing a pipe on the map
@@ -238,12 +271,24 @@ class PipeKingdom(Window):
         sprite = Sprite(
             self.current_building_type.resource, center_x=x, center_y=y, scale=scale
         )
-        building = Building(x, y, sprite, buildings=buildings, building_type=self.current_building_type)
+        building = Building(
+            x, y, sprite, buildings=buildings, building_type=self.current_building_type
+        )
         self.buildings.append(building)
         self.sprite_list.append(sprite)
 
         if self.current_building_type.is_pipe:
             self.pipes[pipe_x][pipe_y] = building
+            self.money -= 50
+
+            print(self.connected_buildings(pipe_x, pipe_y))
+
+        elif self.current_building_type == BuildingType.CHEMICAL_PLANT:
+            self.money -= 200
+        elif self.current_building_type == BuildingType.TREATMENT_CENTRE:
+            self.money -= 300
+        elif self.current_building_type == BuildingType.WATER_PUMP:
+            self.money -= 100
 
 
 def main():
