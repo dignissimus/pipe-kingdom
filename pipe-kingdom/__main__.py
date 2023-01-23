@@ -1,3 +1,4 @@
+import itertools
 import math
 from dataclasses import dataclass, field
 from enum import Enum, auto
@@ -51,26 +52,26 @@ class BuildingType(Enum):
                 return "up-right.png"
             case BuildingType.DOWN_LEFT_PIPE:
                 return "down-left.png"
-            case BuildingType.DOWN_RIGHT_PIPE:
-                return "down-right.png"
+            case BuildingType.UP_LEFT_PIPE:
+                return "up-left.png"
             case BuildingType.CHEMICAL_PLANT:
                 return "chemical.png"
-
             case BuildingType.WATER_PUMP:
                 return "pump.png"
 
     @property
     def is_pipe(self):
         match self:
-            case BuildingType.VERTICAL_PIPE | BuildingType.HORIZONTAL_PIPE:
+            case BuildingType.VERTICAL_PIPE | BuildingType.HORIZONTAL_PIPE | BuildingType.DOWN_RIGHT_PIPE | BuildingType.UP_RIGHT_PIPE | BuildingType.DOWN_LEFT_PIPE | BuildingType.UP_LEFT_PIPE:
                 return True
         return False
 
     @property
     def is_big(self):
-        return (
-            self != BuildingType.VERTICAL_PIPE and self != BuildingType.HORIZONTAL_PIPE
-        )
+        return not self.is_pipe
+        #return (
+        #    self != BuildingType.VERTICAL_PIPE and self != BuildingType.HORIZONTAL_PIPE
+        #)
 
 
 @dataclass
@@ -100,8 +101,8 @@ class PipeKingdom(Window):
         self.building_pipes = False
 
         self.pipes = [
-            [None for _ in range(height // GRID_HEIGHT)]
-            for _ in range(width // GRID_WIDTH)
+            [None for _ in range(height // GRID_HEIGHT + 3)]
+            for _ in range(width // GRID_WIDTH + 3)
         ]
 
         self.manager = arcade.gui.UIManager()
@@ -161,12 +162,20 @@ class PipeKingdom(Window):
         self.menu_box_layout.add(self.water_pump_button)
         self.menu_box_layout.add(self.chemical_plant_button)
 
+        self.win = False
         self.message_box_manager = arcade.gui.UIManager()
         self.message_box = arcade.gui.UIMessageBox(
             width=300,
             height=400,
-            message_text="Too close to existing building",
+            message_text="You have connected all of the houses! You have delivered clean water to the people!",
             buttons=["OK"],
+        )
+        self.message_box_manager.add(
+            arcade.gui.UIAnchorWidget(
+                anchor_x="right",
+                anchor_y="top",
+                child=self.message_box,
+            )
         )
 
         self.menu_box.add(
@@ -208,6 +217,8 @@ class PipeKingdom(Window):
         self.manager.draw()
         if self.show_menu:
             self.menu_box.draw()
+        if self.win:
+            self.message_box_manager.draw()
 
         arcade.draw_text(
             f"Pipe money: ${self.money}",
@@ -245,28 +256,44 @@ class PipeKingdom(Window):
         if not self.current_building_type:
             return
 
+        prev = self.current_building_type
+
         buildings = []
 
         scale = 0.1
         if self.current_building_type.is_pipe:
-            pipe_x = x // GRID_WIDTH
-            pipe_y = y // GRID_HEIGHT
+            pipe_x = x // GRID_WIDTH + 1
+            pipe_y = y // GRID_HEIGHT + 1
             x = pipe_x * GRID_WIDTH
             y = pipe_y * GRID_HEIGHT
             scale = 0.4
             if self.pipes[pipe_x][pipe_y + 1] and self.pipes[pipe_x + 1][pipe_y]:
                 self.current_building_type = BuildingType.UP_RIGHT_PIPE
+            if self.pipes[pipe_x + 1][pipe_y] and self.pipes[pipe_x - 1][pipe_y]:
+                self.current_building_type = BuildingType.HORIZONTAL_PIPE
+            if self.pipes[pipe_x][pipe_y - 1] and self.pipes[pipe_x][pipe_y + 1]:
+                self.current_building_type = BuildingType.VERTICAL_PIPE
+            if self.pipes[pipe_x][pipe_y - 1] and self.pipes[pipe_x + 1][pipe_y]:
+                self.current_building_type = BuildingType.DOWN_RIGHT_PIPE
+            if self.pipes[pipe_x][pipe_y - 1] and self.pipes[pipe_x - 1][pipe_y]:
+                self.current_building_type = BuildingType.DOWN_LEFT_PIPE
+            if self.pipes[pipe_x][pipe_y + 1] and self.pipes[pipe_x - 1][pipe_y]:
+                self.current_building_type = BuildingType.UP_LEFT_PIPE
 
         if self.current_building_type.is_big:
             for building in self.buildings:
-                if building.distance(x, y) < 100 and building.is_big:
+                if building.distance(x, y) < 100 and building.building_type.is_big:
                     return
         else:
             # In this case, we're placing a pipe on the map
             for building in self.buildings:
-                if building.distance(x, y) < 100 and building.building_type.is_big:
+                if building.distance(x, y) < 150 and building.building_type.is_big:
                     building.pipes.append((pipe_x, pipe_y))
                     buildings.append(building)
+
+            if y < 200:
+                # The hackiest of hacks
+                buildings.append(None)
 
         sprite = Sprite(
             self.current_building_type.resource, center_x=x, center_y=y, scale=scale
@@ -281,14 +308,37 @@ class PipeKingdom(Window):
             self.pipes[pipe_x][pipe_y] = building
             self.money -= 50
 
-            print(self.connected_buildings(pipe_x, pipe_y))
-
         elif self.current_building_type == BuildingType.CHEMICAL_PLANT:
             self.money -= 200
         elif self.current_building_type == BuildingType.TREATMENT_CENTRE:
             self.money -= 300
         elif self.current_building_type == BuildingType.WATER_PUMP:
             self.money -= 100
+
+        self.current_building_type = prev
+
+        # print(self.connected_buildings(pipe_x, pipe_y))
+
+        # Horrible algorithm
+        z = []
+        for building in self.buildings:
+            if building.building_type.is_pipe:
+                continue
+            v = False
+            for (x, y) in itertools.product(
+                range(self.width // GRID_WIDTH), range(self.height // GRID_HEIGHT)
+            ):
+                pipe = self.pipes[x][y]
+                if not pipe:
+                    continue
+                cb = self.connected_buildings(x, y)
+                if building in cb and None in cb:
+                    v = True
+            z.append(v)
+
+        if len(z) > 0 and all(z):
+            # print("win")
+            self.win = True
 
 
 def main():
